@@ -5,6 +5,7 @@ import logging
 from .config import get_settings
 from .db import STATUS_DONE, STATUS_REVIEW, get_db
 from .extraction import (
+    RESPONSE_SCHEMA,
     RETRY_PROMPT,
     SYSTEM_PROMPT,
     USER_PROMPT,
@@ -36,13 +37,13 @@ class NoTextError(Exception):
 async def ask_llm(llm: LLMClient, text: str) -> tuple[LLMReceipt, str]:
     """Fragt die KI. Bei ungültigem JSON genau ein zweiter Versuch. Gibt (Ergebnis, Rohantworten) zurück."""
     user = USER_PROMPT.format(text=text)
-    resp = await llm.chat_json(SYSTEM_PROMPT, user)
+    resp = await llm.chat_json(SYSTEM_PROMPT, user, RESPONSE_SCHEMA)
     try:
         return parse_llm_response(resp.content), resp.content
     except ParseError as exc:
         log.warning("KI-Antwort unbrauchbar (%s), zweiter Versuch", exc)
         first = resp.content
-        resp = await llm.chat_json(SYSTEM_PROMPT, user + "\n\n" + RETRY_PROMPT.format(error=exc))
+        resp = await llm.chat_json(SYSTEM_PROMPT, user + "\n\n" + RETRY_PROMPT.format(error=exc), RESPONSE_SCHEMA)
         raw = f"--- Versuch 1 ---\n{first}\n--- Versuch 2 ---\n{resp.content}"
         try:
             return parse_llm_response(resp.content), raw

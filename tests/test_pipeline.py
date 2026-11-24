@@ -18,8 +18,10 @@ class FakeLLM:
     def __init__(self, answers):
         self.answers = list(answers)
         self.calls = []
+        self.schemas = []
 
-    async def chat_json(self, system, user):
+    async def chat_json(self, system, user, schema=None):
+        self.schemas.append(schema)
         self.calls.append(user)
         return LLMResponse(content=self.answers.pop(0))
 

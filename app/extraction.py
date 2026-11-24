@@ -13,31 +13,47 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 
 # --------------------------------------------------------------------------- Prompt
 
-SYSTEM_PROMPT = """Du liest deutsche Kassenbons und Rechnungen aus und antwortest NUR mit JSON.
+# Kurze Schlüssel ("n", "p") sparen Ausgabe-Token: auf dem Server dauert jedes Token ~0,5 s.
+SYSTEM_PROMPT = """Du liest deutsche Kassenbons und Rechnungen aus und antwortest NUR mit kompaktem JSON.
 
-Antwortformat:
-{"haendler": "REWE", "filiale": "Hauptstr. 5, Berlin", "datum": "TT.MM.JJJJ", "gesamtsumme": 12.34,
- "zahlungsart": "Karte", "positionen": [{"name": "BANANEN", "preis": 1.99}]}
+Format:
+{"haendler":"REWE","datum":"TT.MM.JJJJ","summe":12.34,"positionen":[{"n":"BANANEN","p":1.99}]}
 
 Regeln:
 - "haendler": wer den Bon bzw. die Rechnung AUSGESTELLT hat (z. B. REWE, EDEKA, Lidl, Aldi, dm, Rossmann, Amazon, eine Firma).
-  Bei Rechnungen und Briefen ist das der Absender: Briefkopf ganz oben, kleine Absenderzeile über der Anschrift, Fußzeile mit GmbH/Bankverbindung.
-  NIEMALS der Empfänger bzw. Kunde (die Anschrift mit "Herr"/"Frau", Rechnungs- oder Lieferadresse).
-- "filiale": Adresse oder Ort des Ausstellers, sonst null.
+  Bei Rechnungen ist das der Absender (Briefkopf oben, Absenderzeile über der Anschrift), NIEMALS der Empfänger/Kunde.
 - "datum": Kaufdatum bzw. Rechnungsdatum als TT.MM.JJJJ, sonst null.
-- "gesamtsumme": der zu zahlende Endbetrag (SUMME, Gesamt, Zu zahlen, Gesamtbetrag, Rechnungsbetrag, Total), bei Rechnungen der Brutto-Betrag.
-- "zahlungsart": "Bar", "Karte", "PayPal", "Überweisung" o. Ä., sonst null.
+- "summe": der zu zahlende Endbetrag (SUMME, Gesamt, Zu zahlen, Rechnungsbetrag, Total), bei Rechnungen brutto.
 - "positionen": JEDE gekaufte Position in der Reihenfolge des Bons.
-  - "name": genau wie auf dem Bon, ohne Preis, ohne Positionsnummer.
-  - "preis": Gesamtpreis der Zeile (der Betrag ganz rechts bzw. Spalte "Gesamt"). Bei "2 x 0,99" ist der Preis 1.98.
-  - Stehen die Positionen netto da und die MwSt wird erst darunter addiert, übernimm die Preise trotzdem genau so wie gedruckt.
-  - Mengen- oder Gewichtszeilen (z. B. "2 Stk x 0,99" oder "0,456 kg x 2,99 EUR/kg") gehören zur Position darüber und sind KEINE eigene Position.
+  - "n": Name genau wie auf dem Bon, ohne Preis, ohne Positionsnummer.
+  - "p": Gesamtpreis der Zeile (Betrag ganz rechts bzw. Spalte "Gesamt"). "2 x 0,99" ergibt 1.98.
+  - Steht eine Menge in Klammern hinter dem Namen, z. B. "MILCH (2 Stk x 1,29) 2,58", ist p der Betrag ganz rechts (2.58).
+  - Gewichtszeilen wie "0,456 kg x 2,99 EUR/kg" sind KEINE eigene Position.
   - Pfand ist eine eigene Position mit positivem Preis.
-  - Leergut, Rabatte, Coupons und Preisnachlässe sind eigene Positionen mit NEGATIVEM Preis.
-- Ignoriere: MwSt-/Steuerzeilen, Netto/Brutto, Zwischensummen, Gegeben, Rückgeld, Kartenzahlungsdetails, Bonus-/Payback-Punkte, Werbung.
-- Zahlen im JSON mit Punkt als Dezimaltrennzeichen (1,99 auf dem Bon -> 1.99).
-- Die Summe aller Positionen muss die Gesamtsumme ergeben.
+  - Leergut, Rabatte, Coupons sind eigene Positionen mit NEGATIVEM Preis.
+  - Netto-Positionen bei Rechnungen genau so übernehmen wie gedruckt.
+- Ignoriere MwSt-Zeilen, Zwischensummen, Gegeben, Rückgeld, Zahlungsdetails, Punkte, Werbung.
+- Zahlen mit Punkt (1,99 -> 1.99). Die Positionen müssen zusammen die Summe ergeben.
 - Erfinde nichts. Fehlt etwas, setze null."""
+
+# Für Ollama: erzwingt genau diese Struktur (hilft kleinen Modellen sehr)
+RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "haendler": {"type": ["string", "null"]},
+        "datum": {"type": ["string", "null"]},
+        "summe": {"type": ["number", "null"]},
+        "positionen": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"n": {"type": "string"}, "p": {"type": "number"}},
+                "required": ["n", "p"],
+            },
+        },
+    },
+    "required": ["haendler", "datum", "summe", "positionen"],
+}
 
 USER_PROMPT = "Bontext:\n```\n{text}\n```\nAntworte nur mit dem JSON-Objekt."
 
@@ -56,10 +72,22 @@ NOISE_LINE = re.compile(
 BASE64_LINE = re.compile(r"^[A-Za-z0-9+/=]{24,}$")
 
 
+LINES_AFTER_TOTAL = 2
+
+
 def clean_text(raw: str, max_chars: int) -> tuple[str, bool]:
-    """Kompakter Text für die KI. Gibt (Text, wurde_gekürzt) zurück."""
+    """Kompakter Text für die KI. Gibt (Text, wurde_gekürzt) zurück.
+
+    Alles ab kurz nach der Summenzeile (MwSt-Tabelle, Kartenbeleg, Werbung) fällt weg –
+    Datum und Zahlungsart liest der Code selbst aus dem vollständigen Text.
+    """
+    raw_lines = raw.splitlines()
+    for i, line in enumerate(raw_lines):
+        if TOTAL_LINE.match(line) and i > 2:
+            raw_lines = raw_lines[: i + 1 + LINES_AFTER_TOTAL]
+            break
     lines = []
-    for line in raw.splitlines():
+    for line in raw_lines:
         line = re.sub(r"[ \t]{3,}", "   ", line.rstrip())
         stripped = line.strip()
         if not stripped or len(stripped) < 2 and not stripped.isalnum():
@@ -386,8 +414,8 @@ KEY_ALIASES = {
     "positionen": ["items", "artikel", "position", "products", "produkte"],
 }
 ITEM_ALIASES = {
-    "name": ["artikel", "bezeichnung", "item", "description", "produkt"],
-    "preis": ["price", "gesamtpreis", "total", "betrag", "summe", "amount"],
+    "name": ["n", "artikel", "bezeichnung", "item", "description", "produkt"],
+    "preis": ["p", "price", "gesamtpreis", "total", "betrag", "summe", "amount"],
 }
 
 
@@ -428,6 +456,8 @@ def parse_llm_response(content: str) -> LLMReceipt:
         raise ParseError("'positionen' ist keine Liste")
     items = []
     for it in items_raw:
+        if isinstance(it, list) and len(it) >= 2:
+            it = {"name": it[0], "preis": it[-1]}  # Listenform ["NAME", 1.99]
         if not isinstance(it, dict):
             continue
         it = _apply_aliases(it, ITEM_ALIASES)
@@ -525,16 +555,22 @@ def build_result(
     if truncated:
         notes.append("Bontext war zu lang und wurde für die KI gekürzt – evtl. fehlen Positionen.")
 
+    from .lineparser import find_branch, find_payment  # spät importieren (zirkulärer Import)
+
     branch = parsed.filiale
     if branch and is_own_or_recipient(branch, raw_text, own_names or []):
         branch = None  # KI hat die Empfänger-Anschrift erwischt
+    if not branch:
+        branch = find_branch(raw_text)
+        if branch and is_own_or_recipient(branch, raw_text, own_names or []):
+            branch = None
 
     return ReceiptResult(
         merchant=merchant,
         branch=branch,
         purchase_date=purchase_date,
         total=total,
-        payment_method=parsed.zahlungsart,
+        payment_method=parsed.zahlungsart or find_payment(raw_text),
         items=items,
         review_notes=notes,
         info_notes=info,

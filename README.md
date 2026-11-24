@@ -16,7 +16,7 @@ Kategorien, Korrekturen und Dashboard folgen.
 3. **Positionen per Regel** (schnell, ohne KI): Zeilen der Form „Name … Preis“ werden direkt gelesen,
    Mengenzeilen („2 Stk x 1,29 … 2,58“) dem richtigen Artikel zugeordnet. **Nur wenn die Positionen
    exakt die SUMME ergeben**, wird dieses Ergebnis übernommen. Dann ist der Bon in Sekunden fertig.
-4. **KI-Auswertung**, wenn die Regeln nicht aufgehen: über das vorhandene Ollama (`qwen-paperless`). Es läuft immer nur **eine** Anfrage
+4. **KI-Auswertung**, wenn die Regeln nicht aufgehen: über das vorhandene Ollama (`qwen-bons`, Qwen3 4B Instruct). Es läuft immer nur **eine** Anfrage
    gleichzeitig, und eine Anfrage darf bis zu 20 Minuten dauern.
 5. **Plausibilitätsprüfung**: Ergeben die Positionen nicht die Gesamtsumme (±5 ct), oder fehlen Datum
    oder Händler, bekommt der Bon den Status **„Prüfen“** mit Begründung.
@@ -88,11 +88,13 @@ tar czf ~/receipt-backup-$(date +%F).tar.gz data/backup.sqlite3 data/uploads .en
 | `SECRET_KEY` | leer | Leer = wird automatisch erzeugt |
 | `LLM_PROVIDER` | `ollama` | `ollama` oder `openai` (jede OpenAI-kompatible API) |
 | `LLM_BASE_URL` | `http://ollama:11434` | Adresse der KI. Für OpenAI z. B. `https://api.openai.com/v1` |
-| `LLM_MODEL` | `qwen-paperless` | Modellname |
+| `LLM_MODEL` | `qwen-bons` | Modellname |
 | `LLM_API_KEY` | leer | Nur für OpenAI-kompatible APIs |
 | `LLM_TIMEOUT` | `1200` | Maximale Wartezeit pro KI-Anfrage in Sekunden |
-| `LLM_NUM_CTX` | leer | Kontextlänge für Ollama (siehe unten) |
-| `LLM_MAX_INPUT_CHARS` | `6000` | Längere Bontexte werden gekürzt (Bon wird dann „Prüfen“) |
+| `LLM_NUM_CTX` | leer | Kontextlänge für Ollama. Leer = Wert aus dem Modelfile |
+| `LLM_NUM_THREAD` | leer | CPU-Threads für Ollama. Leer = Wert aus dem Modelfile |
+| `LLM_THINK` | `false` | Denkmodus des Modells abschalten (spart viel Zeit) |
+| `LLM_MAX_INPUT_CHARS` | `12000` | Längere Bontexte werden gekürzt (Bon wird dann „Prüfen“) |
 | `OWN_NAMES` | leer | Dein Name und deine Adresse(n), mit `;` getrennt. Werden nie als Händler übernommen. |
 | `OCR_LANG` | `deu+eng` | Sprachen für Tesseract |
 | `RULE_PARSER` | `true` | Positionen zuerst per Regel lesen; `false` = immer die KI fragen |
@@ -100,12 +102,18 @@ tar czf ~/receipt-backup-$(date +%F).tar.gz data/backup.sqlite3 data/uploads .en
 
 Nach Änderungen an der `.env`: `docker compose up -d` (ohne `--build` reicht).
 
-### Kontextlänge (`LLM_NUM_CTX`)
+### Ollama-Modell
 
-Das Modell kann nur eine begrenzte Textmenge auf einmal lesen. Leer bedeutet: Es gilt der Standard von Ollama.
-Das ist empfohlen, weil Paperless dasselbe Modell nutzt und ein abweichender Wert Ollama zwingt, das Modell neu zu laden.
-Wenn bei langen Bons am Ende Positionen fehlen, kannst du `LLM_NUM_CTX=8192` setzen. Das kostet dann etwas mehr RAM und Zeit,
-wenn sich die App und Paperless abwechseln.
+Die App ist auf ein eigenes Ollama-Modell `qwen-bons` abgestimmt (Basis `qwen3:4b-instruct-2507-q4_K_M`,
+Modelfile mit `num_ctx 8192`, `num_thread 3`, `temperature 0`). Ollama läuft mit
+`OLLAMA_MAX_LOADED_MODELS=1`, `OLLAMA_NUM_PARALLEL=1`, `OLLAMA_KEEP_ALIVE=10m`.
+
+Auf dem J5005 schreibt das Modell knapp 2 Token pro Sekunde. Deshalb:
+- Die meisten Bons werden per Regel gelesen, ohne KI.
+- Die KI antwortet in einem kompakten, per JSON-Schema erzwungenen Format (`{"n":…,"p":…}`).
+- An die KI geht nur der Text bis kurz nach der Summenzeile.
+
+Die Dauer jeder KI-Anfrage steht im Log (`tokens_per_s`, `seconds`).
 
 ## Fehlersuche
 

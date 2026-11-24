@@ -18,7 +18,7 @@ class OpenAICompatClient:
         self.timeout = timeout
         self.api_key = api_key
 
-    async def chat_json(self, system: str, user: str) -> LLMResponse:
+    async def chat_json(self, system: str, user: str, schema: dict | None = None) -> LLMResponse:
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
         payload = {
             "model": self.model,

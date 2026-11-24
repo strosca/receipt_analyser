@@ -15,6 +15,9 @@ class LLMResponse:
 class LLMClient(Protocol):
     name: str
 
-    async def chat_json(self, system: str, user: str) -> LLMResponse:
-        """Schickt System- und Benutzer-Nachricht und erwartet eine JSON-Antwort (als Text)."""
+    async def chat_json(self, system: str, user: str, schema: dict | None = None) -> LLMResponse:
+        """Schickt System- und Benutzer-Nachricht und erwartet eine JSON-Antwort (als Text).
+
+        schema: optionales JSON-Schema, an das sich die Antwort halten soll (falls der Anbieter das kann).
+        """
         ...

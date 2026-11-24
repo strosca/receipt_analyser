@@ -17,11 +17,13 @@ class Settings(BaseSettings):
 
     llm_provider: str = "ollama"
     llm_base_url: str = "http://ollama:11434"
-    llm_model: str = "qwen-paperless"
+    llm_model: str = "qwen-bons"
     llm_api_key: str | None = None
     llm_timeout: float = 1200
     llm_num_ctx: int | None = None
-    llm_max_input_chars: int = 6000
+    llm_num_thread: int | None = None
+    llm_think: bool | None = None  # None = Parameter nicht senden
+    llm_max_input_chars: int = 12000
 
     ocr_lang: str = "deu+eng"
     rule_parser: bool = True  # Positionen erst per Regel versuchen, KI nur wenn die Summe nicht passt
