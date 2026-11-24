@@ -8,13 +8,17 @@ from .extraction import (
     RETRY_PROMPT,
     SYSTEM_PROMPT,
     USER_PROMPT,
+    LLMItem,
     LLMReceipt,
     ParseError,
     ReceiptResult,
     build_result,
     clean_text,
+    find_total,
+    is_net_invoice,
     parse_llm_response,
 )
+from .lineparser import find_branch, find_payment, merge_quantity_lines, parse_items
 from .llm import LLMClient, get_llm, llm_lock
 from .ocr import extract_text
 from .storage import receipt_file_path
@@ -46,7 +50,32 @@ async def ask_llm(llm: LLMClient, text: str) -> tuple[LLMReceipt, str]:
             raise ParseError(f"KI lieferte zweimal kein gültiges JSON: {exc2}. Antwort: {resp.content[:300]}") from exc2
 
 
-def save_result(receipt_id: int, result: ReceiptResult, llm_raw: str) -> None:
+def try_rules(raw_text: str) -> ReceiptResult | None:
+    """Positionen ohne KI auslesen. Nur gültig, wenn sie exakt die Summenzeile ergeben."""
+    settings = get_settings()
+    if not settings.rule_parser:
+        return None
+    items = parse_items(raw_text)
+    total = find_total(raw_text)
+    if not items or total is None:
+        return None
+    items_sum = round(sum(i.price for i in items), 2)
+    tol = settings.sum_tolerance
+    if abs(items_sum - total) > tol and not is_net_invoice(items_sum, total, raw_text, tol):
+        log.info("Regeln: %d Positionen = %.2f, Summe %.2f -> passt nicht, frage KI", len(items), items_sum, total)
+        return None
+    parsed = LLMReceipt(
+        filiale=find_branch(raw_text),
+        gesamtsumme=total,
+        zahlungsart=find_payment(raw_text),
+        positionen=[LLMItem(name=i.name, preis=i.price) for i in items],
+    )
+    result = build_result(parsed, raw_text, tol, own_names=settings.own_names_list)
+    result.info_notes.insert(0, "Positionen per Regel erkannt (ohne KI).")
+    return result
+
+
+def save_result(receipt_id: int, result: ReceiptResult, llm_raw: str | None) -> None:
     status = STATUS_REVIEW if result.needs_review else STATUS_DONE
     with get_db() as db:
         db.execute(
@@ -81,11 +110,19 @@ async def process_receipt(receipt_id: int, llm: LLMClient | None = None) -> None
             "UPDATE receipts SET raw_text = ?, text_source = ?, updated_at = datetime('now') WHERE id = ?",
             (text_result.text, text_result.source, receipt_id),
         )
-    prompt_text, truncated = clean_text(text_result.text, settings.llm_max_input_chars)
+    prompt_text, truncated = clean_text(merge_quantity_lines(text_result.text), settings.llm_max_input_chars)
     if len(prompt_text.strip()) < MIN_TEXT_CHARS:
         raise NoTextError("Kein lesbarer Text erkannt. Foto evtl. unscharf oder zu dunkel.")
 
-    # 2. KI-Auswertung (immer nur eine gleichzeitig)
+    # 2a. Schneller Weg: Positionen per Regel, wenn sie exakt die Summe ergeben
+    result = try_rules(text_result.text)
+    if result is not None:
+        save_result(receipt_id, result, None)
+        log.info("Bon %s: per Regel erkannt (%s, %d Positionen, Summe %s)",
+                 receipt_id, result.merchant, len(result.items), result.total)
+        return
+
+    # 2b. KI-Auswertung (immer nur eine gleichzeitig)
     llm = llm or get_llm()
     set_progress(receipt_id, "Wartet auf KI")
     async with llm_lock:

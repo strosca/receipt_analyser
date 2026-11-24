@@ -13,9 +13,12 @@ Kategorien, Korrekturen und Dashboard folgen.
    - PDFs mit Textebene (eBons, Amazon-Rechnungen): Der Text wird direkt ausgelesen (`pdftotext`).
    - Fotos und gescannte PDFs: Das Bild wird aufbereitet (Bon finden und entzerren, Schatten entfernen,
      Kontrast, Schärfen, Begradigen) und dann mit Tesseract (Deutsch und Englisch) gelesen.
-3. **KI-Auswertung** über das vorhandene Ollama (`qwen-paperless`). Es läuft immer nur **eine** Anfrage
+3. **Positionen per Regel** (schnell, ohne KI): Zeilen der Form „Name … Preis“ werden direkt gelesen,
+   Mengenzeilen („2 Stk x 1,29 … 2,58“) dem richtigen Artikel zugeordnet. **Nur wenn die Positionen
+   exakt die SUMME ergeben**, wird dieses Ergebnis übernommen. Dann ist der Bon in Sekunden fertig.
+4. **KI-Auswertung**, wenn die Regeln nicht aufgehen: über das vorhandene Ollama (`qwen-paperless`). Es läuft immer nur **eine** Anfrage
    gleichzeitig, und eine Anfrage darf bis zu 20 Minuten dauern.
-4. **Plausibilitätsprüfung**: Ergeben die Positionen nicht die Gesamtsumme (±5 ct), oder fehlen Datum
+5. **Plausibilitätsprüfung**: Ergeben die Positionen nicht die Gesamtsumme (±5 ct), oder fehlen Datum
    oder Händler, bekommt der Bon den Status **„Prüfen“** mit Begründung.
 
 Status eines Bons: *In Warteschlange → Wird verarbeitet → Fertig / Prüfen / Fehler*
@@ -92,6 +95,7 @@ tar czf ~/receipt-backup-$(date +%F).tar.gz data/backup.sqlite3 data/uploads .en
 | `LLM_MAX_INPUT_CHARS` | `6000` | Längere Bontexte werden gekürzt (Bon wird dann „Prüfen“) |
 | `OWN_NAMES` | leer | Dein Name und deine Adresse(n), mit `;` getrennt. Werden nie als Händler übernommen. |
 | `OCR_LANG` | `deu+eng` | Sprachen für Tesseract |
+| `RULE_PARSER` | `true` | Positionen zuerst per Regel lesen; `false` = immer die KI fragen |
 | `SUM_TOLERANCE` | `0.05` | Erlaubte Abweichung Positionen ↔ Summe in Euro |
 
 Nach Änderungen an der `.env`: `docker compose up -d` (ohne `--build` reicht).
@@ -131,6 +135,7 @@ app/
   pipeline.py     Ablauf pro Bon: Text → KI → Prüfung → Speichern
   ocr.py          pdftotext, Bildaufbereitung, Tesseract
   extraction.py   Prompt, Einlesen der KI-Antwort, Plausibilitätsprüfung
+  lineparser.py   Positionen per Regel (ohne KI), Ladenname/Filiale/Zahlungsart
   llm/            Austauschbare KI-Anbindung (Ollama, OpenAI-kompatibel)
   db.py           SQLite-Schema und Migrationen
 tests/            pytest, inkl. Beispiel-Bontexte von REWE und dm

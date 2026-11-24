@@ -1,0 +1,48 @@
+                 *** MUSTERBON - TESTDATEN ***
+
+                    FRISCHMARKT MUSTERMANN
+                        Musterstrasse 12
+                       12345 Musterstadt
+                      Tel. 0123 / 456789
+                     UID Nr.: DE000000000
+
+                                                    EUR
+    BIO VOLLMILCH 3,8%
+      2 Stk x 1,29                                2,58 A
+    VOLLKORNBROT 750G                             2,49 A
+    BANANEN                                       1,87 A
+      1,246 kg x 1,50 EUR/kg
+    SCHOKORIEGEL 5ER                              2,19 A
+    GUMMIBAERCHEN 200G
+      3 Stk x 0,99                                2,97 A
+    KARTOFFELCHIPS PAPRIKA                        1,79 A
+    MINERALWASSER 6X1,5L                          3,54 B
+    PFAND 6 X 0,25                                1,50 B
+    DUSCHGEL SENSITIV                             1,45 B
+    ZAHNPASTA
+      2 Stk x 0,95                                1,90 B
+    SPUELMITTEL ZITRONE                           1,15 B
+    BIER PILS 0,5L
+      4 Stk x 0,89                                3,56 B
+    PFAND 4 X 0,08                                0,32 B
+    RABATT SCHOKORIEGEL                          -0,40 A
+    LEERGUT                                      -2,25 B
+    ----------------------------------------
+    SUMME                                   EUR 24,66
+    ========================================
+    Geg. EC-Karte                           EUR 24,66
+
+    Steuer    %       Netto      Steuer      Brutto
+    A= 7%           12,61        0,88       13,49
+    B=19%            9,39        1,78       11,17
+    Gesamt                                  24,66
+
+    24.11.2026  18:42  Bon-Nr.: 4711
+    Markt: 0815    Kasse: 3    Bed.: 12
+
+               Kartenzahlung girocard
+                  Betrag EUR 24,66
+                Terminal-ID 00000000
+                   Zahlung erfolgt
+
+           Vielen Dank fuer Ihren Einkauf!

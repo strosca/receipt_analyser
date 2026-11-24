@@ -249,12 +249,20 @@ def canonical_merchant(llm_value: str | None, raw_text: str, own_names: list[str
         if llm_value and _norm(llm_value) and (_norm(llm_value) in _norm(sender_line) or _norm(sender_line) in _norm(llm_value)):
             return llm_value.strip()
         return sender_line
+    from .lineparser import find_header_name  # spät importieren (zirkulärer Import)
+
+    header = find_header_name(raw_text)
+    if header and is_own_or_recipient(header, raw_text, own_names):
+        header = None
     if llm_value and llm_value.strip():
+        # KI hat nur einen Teil erwischt ("MUSTERMANN" statt "FRISCHMARKT MUSTERMANN")
+        if header and _norm(llm_value) and _norm(llm_value) in _norm(header):
+            return header
         return llm_value.strip()
     sender = find_sender(raw_text)
     if sender and not is_own_or_recipient(sender, raw_text, own_names):
         return sender
-    return None
+    return header
 
 
 # --------------------------------------------------------------------------- Gegenprüfung per Regex

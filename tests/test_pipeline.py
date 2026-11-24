@@ -26,6 +26,10 @@ class FakeLLM:
 
 @pytest.fixture
 def receipt_id(monkeypatch):
+    # Diese Tests prüfen den KI-Weg -> Regel-Parser aus
+    monkeypatch.setenv("RULE_PARSER", "false")
+    from app.config import get_settings
+    get_settings.cache_clear()
     init_db()
     monkeypatch.setattr(pipeline, "extract_text", lambda path, mime: TextResult(REWE, "pdf", 1))
     with get_db() as db:
@@ -80,3 +84,15 @@ def test_pipeline_rejects_empty_text(receipt_id, monkeypatch):
     monkeypatch.setattr(pipeline, "extract_text", lambda path, mime: TextResult("  \n ~~ \n", "ocr", 1))
     with pytest.raises(pipeline.NoTextError):
         asyncio.run(pipeline.process_receipt(receipt_id, FakeLLM([])))
+
+
+def test_pipeline_uses_rules_and_skips_llm(receipt_id, monkeypatch):
+    monkeypatch.setenv("RULE_PARSER", "true")
+    from app.config import get_settings
+    get_settings.cache_clear()
+    llm = FakeLLM([])  # würde bei einem Aufruf mit IndexError scheitern
+    asyncio.run(pipeline.process_receipt(receipt_id, llm))
+    r, items = _load(receipt_id)
+    assert llm.calls == []
+    assert r["status"] == "fertig" and r["merchant"] == "REWE" and len(items) == 10
+    assert "ohne KI" in r["status_detail"] and r["llm_raw"] is None
