@@ -1,0 +1,24 @@
+services:
+  receipt-analyser:
+    build: .
+    image: receipt-analyser:latest
+    container_name: receipt-analyser
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /app/data
+    ports:
+      - "${APP_PORT:-8095}:8000"
+    volumes:
+      - ./data:/app/data
+    networks:
+      - ki
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  ki:
+    external: true

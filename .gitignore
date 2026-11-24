@@ -1,0 +1,20 @@
+# Laufzeitdaten (Datenbank, Uploads, Logs) – werden separat gesichert
+/data/
+
+# Konfiguration mit Passwörtern
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
