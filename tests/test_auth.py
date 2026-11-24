@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 
 def make_client():
     from app.main import create_app
-    return TestClient(create_app())
+    return TestClient(create_app(start_worker=False))
 
 
 def test_health_is_public():

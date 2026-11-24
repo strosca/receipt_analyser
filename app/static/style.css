@@ -68,3 +68,23 @@ th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--bord
 th { font-size: .8rem; color: var(--muted); font-weight: 600; }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 pre.rawtext { white-space: pre-wrap; font-size: .8rem; background: var(--bg); padding: 12px; border-radius: 8px; max-height: 60vh; overflow: auto; }
+
+.dropzone {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
+  padding: 28px 16px; border: 2px dashed var(--border); border-radius: var(--radius);
+  cursor: pointer; color: var(--text);
+}
+.dropzone.over { border-color: var(--accent); background: var(--info-bg); }
+.dropzone-icon { font-size: 2rem; line-height: 1; color: var(--accent); }
+.uploadlist { list-style: none; padding: 0; margin: 12px 0 0; }
+.uploadlist li { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 8px 0; border-top: 1px solid var(--border); font-size: .9rem; }
+.uploadlist .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.uploadlist progress { grid-column: 1 / -1; width: 100%; height: 6px; }
+.state.ok { color: var(--ok); } .state.warn { color: var(--warn); } .state.err { color: var(--err); }
+
+.receiptlist { list-style: none; padding: 0; margin: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.receiptlist li + li { border-top: 1px solid var(--border); }
+.receiptlist a { display: block; padding: 10px 14px; color: inherit; text-decoration: none; }
+.receiptlist .row1, .receiptlist .row2 { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.receiptlist .row2 { justify-content: flex-start; margin-top: 4px; }
+.receiptlist .num { font-variant-numeric: tabular-nums; white-space: nowrap; }

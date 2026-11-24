@@ -1,0 +1,23 @@
+{% if not receipts %}
+<p class="muted">Noch keine Bons.</p>
+{% else %}
+<ul class="receiptlist">
+  {% for r in receipts %}
+  <li>
+    <a href="/bons/{{ r.id }}">
+      <div class="row1">
+        <strong>{{ r.merchant or r.original_name or ("Bon #" ~ r.id) }}</strong>
+        <span class="num">{{ r.total | euro if r.total is not none else "" }}</span>
+      </div>
+      <div class="row2">
+        <span class="badge {{ r.status }}">{{ labels[r.status] }}</span>
+        <span class="muted small">
+          {% if r.purchase_date %}{{ r.purchase_date | datum }}{% else %}#{{ r.id }}{% endif %}
+          {% if r.status in ("verarbeitung", "fehler") and r.status_detail %} · {{ r.status_detail | truncate(80) }}{% endif %}
+        </span>
+      </div>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}

@@ -3,15 +3,19 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Form, Request
+from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from .auth import NotAuthenticated, check_credentials, require_login
+from .auth import NotAuthenticated, check_credentials
 from .config import get_settings
+from .db import init_db
 from .logging_setup import setup_logging
+from .pipeline import process_receipt
 from .templating import templates
+from .web import router as web_router
+from .worker import Worker
 
 log = logging.getLogger(__name__)
 BASE_DIR = Path(__file__).parent
@@ -24,14 +28,21 @@ async def lifespan(app: FastAPI):
     setup_logging(settings.log_dir)
     if not settings.app_password:
         log.error("APP_PASSWORD ist nicht gesetzt – Anmeldung ist nicht möglich. Bitte in .env eintragen.")
+    init_db()
+    worker = Worker(process_receipt)
+    app.state.worker = worker
+    if app.state.start_worker:
+        worker.start()
     log.info("Receipt Analyser gestartet (KI: %s / %s)", settings.llm_provider, settings.llm_model)
     yield
+    await worker.stop()
 
 
-def create_app() -> FastAPI:
+def create_app(start_worker: bool = True) -> FastAPI:
     settings = get_settings()
     settings.ensure_dirs()
     app = FastAPI(title="Kassenbon-Auswertung", lifespan=lifespan, docs_url=None, redoc_url=None)
+    app.state.start_worker = start_worker
     app.add_middleware(
         SessionMiddleware,
         secret_key=settings.get_secret_key(),
@@ -72,10 +83,7 @@ def create_app() -> FastAPI:
         request.session.clear()
         return RedirectResponse("/login", status_code=303)
 
-    @app.get("/", response_class=HTMLResponse)
-    async def index(request: Request, user: str = Depends(require_login)):
-        return templates.TemplateResponse(request, "index.html", {})
-
+    app.include_router(web_router)
     return app
 
 

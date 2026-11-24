@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Hochladen{% endblock %}
+{% block content %}
+<h1>Bon hochladen</h1>
+
+<div class="card">
+  <label class="dropzone" id="dropzone">
+    <input type="file" id="fileinput" accept="image/*,application/pdf,.heic,.pdf" multiple hidden>
+    <span class="dropzone-icon" aria-hidden="true">＋</span>
+    <strong>Foto aufnehmen oder Datei wählen</strong>
+    <span class="muted small">Fotos, Scans oder PDFs (auch mehrseitig). Mehrere auf einmal möglich.</span>
+  </label>
+  <ul id="uploadlist" class="uploadlist"></ul>
+</div>
+
+<h2>Zuletzt hochgeladen</h2>
+<div id="recent" hx-get="/partials/recent" hx-trigger="load, every 5s, refresh" hx-swap="innerHTML">
+  <p class="muted">Lade …</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const input = document.getElementById("fileinput");
+  const list = document.getElementById("uploadlist");
+  const dropzone = document.getElementById("dropzone");
+  let queue = Promise.resolve();
+
+  function addRow(name) {
+    const li = document.createElement("li");
+    li.innerHTML = '<span class="name"></span><span class="state muted">wartet …</span><progress max="100" value="0"></progress>';
+    li.querySelector(".name").textContent = name;
+    list.prepend(li);
+    return li;
+  }
+
+  function upload(file, li) {
+    return new Promise((resolve) => {
+      const state = li.querySelector(".state");
+      const bar = li.querySelector("progress");
+      const xhr = new XMLHttpRequest();
+      const form = new FormData();
+      form.append("file", file, file.name);
+      xhr.open("POST", "/upload");
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) bar.value = (e.loaded / e.total) * 100; };
+      xhr.onload = () => {
+        bar.remove();
+        let data = {};
+        try { data = JSON.parse(xhr.responseText); } catch (_) {}
+        if (xhr.status === 401) { location.href = "/login"; return; }
+        if (xhr.status === 200 && data.ok) {
+          state.textContent = data.duplicate ? "schon vorhanden" : "hochgeladen ✓";
+          state.className = "state " + (data.duplicate ? "warn" : "ok");
+        } else {
+          state.textContent = data.error || ("Fehler " + xhr.status);
+          state.className = "state err";
+        }
+        htmx.trigger("#recent", "refresh");
+        resolve();
+      };
+      xhr.onerror = () => { bar.remove(); state.textContent = "Netzwerkfehler"; state.className = "state err"; resolve(); };
+      state.textContent = "lädt hoch …";
+      xhr.send(form);
+    });
+  }
+
+  function handleFiles(files) {
+    for (const file of files) {
+      const li = addRow(file.name);
+      queue = queue.then(() => upload(file, li));
+    }
+  }
+
+  input.addEventListener("change", () => { handleFiles(input.files); input.value = ""; });
+  ["dragover", "dragenter"].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add("over"); }));
+  ["dragleave", "drop"].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove("over"); }));
+  dropzone.addEventListener("drop", e => handleFiles(e.dataTransfer.files));
+})();
+</script>
+{% endblock %}
