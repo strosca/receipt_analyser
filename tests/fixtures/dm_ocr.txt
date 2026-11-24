@@ -1,0 +1,22 @@
+dm-drogerie markt
+Filiale 1234
+Hauptstraße 1, 54321 Beispielstadt
+Tel. 0721 5592-0
+
+Balea Duschgel Fresh 300ml       0,95  1
+alverde Shampoo Repair           2,45  1
+2 x 1,25
+Denkmit Spülmaschinentabs        2,50  1
+dmBio Haferflocken 500g          0,85  2
+Dontodent Zahnbürste             1,45  1
+Coupon 10% auf Balea            -0,50  1
+                              ---------
+SUMME EUR                        7,70
+EC-Karte                         7,70
+
+MwSt-Satz   Netto    MwSt   Brutto
+1=19,00%     5,43    1,03     6,46
+2= 7,00%     0,79    0,06     0,85
+
+03.11.26  14:05   2711/1   012345/67
+Vielen Dank für Ihren Einkauf

@@ -1,0 +1,41 @@
+                          REWE Markt GmbH
+                          Musterstraße 12
+                         12345 Musterstadt
+                      UID Nr.: DE812706034
+                                                     EUR
+BANANE CHIQUITA                                     1,49 B
+VOLLMILCH 3,5%                                      1,19 B
+MILKA ALPENMILCH                                    2,58 B
+      2 Stk x    1,29
+COCA COLA 1,0L                                      1,29 A
+PFAND 0,25 EURO                                     0,25 A
+HARIBO GOLDBAEREN                                   0,99 B
+BIO EIER M 10ER                                     3,49 B
+NIVEA DUSCHGEL                                      1,95 A
+LEERGUT                                            -0,75 A
+RABATT HARIBO                                      -0,20 B
+---------------------------------------------------------------
+SUMME                                   EUR        12,28
+===============================================================
+Geg. EC-Cash                            EUR        12,28
+
+  * Kundenbeleg *
+  Datum:                                  03.11.2026
+  Uhrzeit:                             18:42:11 Uhr
+  Trace-Nr.                                 012345
+  Bezahlung erfolgt
+
+     Steuer  %         Netto      Steuer       Brutto
+     A=  19,0%          2,30        0,44         2,74
+     B=   7,0%          8,92        0,62         9,54
+     Gesamtbetrag      11,22        1,06        12,28
+
+TSE-Signatur:      MEUCIQDx7Y3s1N+ZFaKb2nG8qQ1Lx0aWJm9t
+                   dGVzdHNpZ25hdHVyZWJhc2U2NGxpbmVzMTIzNA==
+TSE-Signaturzähler:                          123456
+TSE-Start:                  2026-11-03T18:41:58.000
+TSE-Stop:                   2026-11-03T18:42:11.000
+Seriennummer Kasse:                       REWE:e4:5f:01:aa
+03.11.2026     18:42        Bon-Nr.:4711
+Markt:1234     Kasse:3      Bed.:123456
+               Vielen Dank für Ihren Einkauf
