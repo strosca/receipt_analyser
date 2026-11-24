@@ -24,7 +24,12 @@ class Settings(BaseSettings):
     llm_max_input_chars: int = 6000
 
     ocr_lang: str = "deu+eng"
+    own_names: str = ""  # eigene Namen/Adressen, durch ";" getrennt – werden nie als Händler übernommen
     sum_tolerance: float = 0.05
+
+    @property
+    def own_names_list(self) -> list[str]:
+        return [n.strip() for n in self.own_names.split(";") if n.strip()]
 
     @property
     def db_path(self) -> Path:

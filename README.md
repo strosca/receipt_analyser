@@ -90,6 +90,7 @@ tar czf ~/receipt-backup-$(date +%F).tar.gz data/backup.sqlite3 data/uploads .en
 | `LLM_TIMEOUT` | `1200` | Maximale Wartezeit pro KI-Anfrage in Sekunden |
 | `LLM_NUM_CTX` | leer | Kontextlänge für Ollama (siehe unten) |
 | `LLM_MAX_INPUT_CHARS` | `6000` | Längere Bontexte werden gekürzt (Bon wird dann „Prüfen“) |
+| `OWN_NAMES` | leer | Dein Name und deine Adresse(n), mit `;` getrennt. Werden nie als Händler übernommen. |
 | `OCR_LANG` | `deu+eng` | Sprachen für Tesseract |
 | `SUM_TOLERANCE` | `0.05` | Erlaubte Abweichung Positionen ↔ Summe in Euro |
 
@@ -134,3 +135,11 @@ app/
   db.py           SQLite-Schema und Migrationen
 tests/            pytest, inkl. Beispiel-Bontexte von REWE und dm
 ```
+
+## Rechnungen statt Kassenbons
+
+- **Netto-Rechnungen** (Handwerker, Firmen): Sind die Positionen netto und wird die MwSt erst darunter
+  aufgeschlagen, rechnet die App die Positionen anteilig auf brutto hoch. So zeigt die Auswertung,
+  was du wirklich bezahlt hast. Am Bon steht dann ein Hinweis „Netto-Rechnung: …“.
+- **Absender statt Empfänger**: Händler ist immer der Aussteller. Die Absenderzeile über dem Adressfeld
+  („Firma · Straße · PLZ Ort“) hat Vorrang vor der KI. Trag zusätzlich deinen Namen in `OWN_NAMES` ein.

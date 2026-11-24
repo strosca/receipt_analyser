@@ -1,0 +1,41 @@
+                         MUSTERRECHNUNG - TESTDATEN - KEINE ECHTE RECHNUNG
+
+
+   Mustermann Elektrotechnik GmbH
+   Musterweg 7 · 12345 Musterstadt · info@example.com · 0123 / 987654
+
+
+   Mustermann Elektrotechnik GmbH · Musterweg 7 · 12345 Musterstadt
+   Max Beispiel                                               Rechnungsnummer:            RE-2026-0142
+   Beispielallee 3                                            Rechnungsdatum:               24.11.2026
+   54321 Beispielhausen                                       Leistungsdatum:               18.11.2026
+                                                              Kundennummer:                     K-1007
+
+
+
+   Rechnung
+   Sehr geehrter Herr Beispiel,
+   für die ausgeführten Arbeiten erlauben wir uns, wie folgt zu berechnen:
+
+   Pos. Bezeichnung                                           Menge      Einzelpreis           Gesamt
+   1      Arbeitszeit Elektroinstallation (Std.)               3,50          58,00 €         203,00 €
+   2      Steckdose 2-fach, Unterputz                              4         12,90 €          51,60 €
+   3      Installationskabel NYM-J 3x1,5 (m)                     25           0,89 €          22,25 €
+   4      Anfahrtspauschale                                        1         35,00 €          35,00 €
+
+                                                              Nettobetrag                     311,85 €
+                                                              zzgl. 19 % MwSt.                 59,25 €
+                                                              Rechnungsbetrag                371,10 €
+
+
+   Bitte überweisen Sie den Rechnungsbetrag innerhalb von 14 Tagen ohne Abzug
+   unter Angabe der Rechnungsnummer auf das unten genannte Konto.
+
+   Mit freundlichen Grüßen
+   Mustermann Elektrotechnik GmbH
+
+
+
+
+   Musterbank · IBAN DE00 0000 0000 0000 0000 00 · BIC MUSTDEXXXX
+   Geschäftsführer: Max Mustermann · Amtsgericht Musterstadt HRB 00000 · USt-IdNr. DE000000000   Seite 1 von 1

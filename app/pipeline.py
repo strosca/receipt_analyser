@@ -51,12 +51,13 @@ def save_result(receipt_id: int, result: ReceiptResult, llm_raw: str) -> None:
     with get_db() as db:
         db.execute(
             """UPDATE receipts SET merchant = ?, branch = ?, purchase_date = ?, total = ?, payment_method = ?,
-                   llm_raw = ?, review_notes = ?, status = ?, status_detail = NULL,
+                   llm_raw = ?, review_notes = ?, status = ?, status_detail = ?,
                    processed_at = datetime('now'), updated_at = datetime('now')
                WHERE id = ?""",
             (
                 result.merchant, result.branch, result.purchase_date, result.total, result.payment_method,
-                llm_raw, "\n".join(result.review_notes) or None, status, receipt_id,
+                llm_raw, "\n".join(result.review_notes) or None, status,
+                " ".join(result.info_notes) or None, receipt_id,
             ),
         )
         db.execute("DELETE FROM items WHERE receipt_id = ?", (receipt_id,))
@@ -92,7 +93,7 @@ async def process_receipt(receipt_id: int, llm: LLMClient | None = None) -> None
         parsed, llm_raw = await ask_llm(llm, prompt_text)
 
     # 3. Prüfen und speichern
-    result = build_result(parsed, text_result.text, settings.sum_tolerance, truncated)
+    result = build_result(parsed, text_result.text, settings.sum_tolerance, truncated, settings.own_names_list)
     save_result(receipt_id, result, llm_raw)
     log.info(
         "Bon %s: %s, %d Positionen, Summe %s, %s",
