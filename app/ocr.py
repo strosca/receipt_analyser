@@ -237,19 +237,26 @@ def tesseract(image_path: Path) -> str:
 def find_cut_rows(gray: np.ndarray, parts: int) -> list[int]:
     """Zeilen (y), an denen das Bild in `parts` Streifen geschnitten werden kann, ohne Text zu zerteilen.
 
-    Gesucht wird jeweils nahe der idealen Schnittstelle eine komplett weiße Zeile, möglichst
+    Gesucht wird jeweils nahe der idealen Schnittstelle eine (fast) weiße Zeile, möglichst
     mittig in einer Lücke zwischen zwei Textzeilen. Ohne Lücke wird dort nicht geschnitten.
+
+    Echte Fotos haben Rauschen und Papierkanten, daher:
+      - einzelne Pixel/Krümel werden vorher weggefiltert,
+      - die äußeren 5 % links/rechts zählen nicht (Kante, Schatten),
+      - eine Zeile mit höchstens 1 % Tinte gilt als Lücke.
     """
-    h = gray.shape[0]
+    h, w = gray.shape
     if parts <= 1 or h < 2 * MIN_STRIP_HEIGHT:
         return []
     parts = min(parts, h // MIN_STRIP_HEIGHT)
     _, ink = cv2.threshold(gray, 0, 1, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    margin = gray.shape[1] // 50  # Ränder ignorieren (Schatten, Papierkante)
-    row_ink = ink[:, margin: gray.shape[1] - margin].sum(axis=1)
-    blank = row_ink <= max(2, gray.shape[1] // 500)
+    ink = cv2.morphologyEx(ink, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))  # Rauschen weg
+    margin = w // 20
+    inner = ink[:, margin: w - margin]
+    row_ink = inner.sum(axis=1)
+    blank = row_ink <= max(2, inner.shape[1] // 100)
     cuts = []
-    window = h // (parts * 4)
+    window = h // (parts * 3)
     for k in range(1, parts):
         target = k * h // parts
         lo, hi = max(target - window, 1), min(target + window, h - 1)
@@ -279,6 +286,9 @@ def tesseract_parallel(gray: np.ndarray, workdir: Path, name: str) -> str:
         cv2.imwrite(str(path), gray[a:b])
         paths.append(path)
     if len(paths) == 1:
+        if threads > 1:
+            reason = "Bild zu klein" if gray.shape[0] < 2 * MIN_STRIP_HEIGHT else "keine Lücke zwischen Zeilen gefunden"
+            log.info("OCR %s: nicht geteilt (%s, Höhe %d px), 1 Kern", name, reason, gray.shape[0])
         return tesseract(paths[0])
     with ThreadPoolExecutor(max_workers=len(paths)) as pool:
         parts = list(pool.map(tesseract, paths))

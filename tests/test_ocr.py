@@ -68,9 +68,10 @@ def test_cuts_only_between_text_lines(parts):
 
 
 def test_no_cut_without_gap():
-    # Komplett schwarz gestreiftes Bild ohne weiße Zeile -> nicht schneiden
+    # Dicht gestreiftes Bild: 4 px Tinte, 2 px weiß -> keine echte Lücke, nicht schneiden
     img = np.full((3000, 800), 255, np.uint8)
-    img[::2, :] = 0
+    for y in range(0, 3000, 6):
+        img[y:y + 4, :] = 0
     assert ocr.find_cut_rows(img, 3) == []
 
 
@@ -99,3 +100,29 @@ def test_parallel_ocr_keeps_order(tmp_path, monkeypatch):
     text = ocr.tesseract_parallel(ocr.preprocess(fake_receipt(height=3000)), tmp_path, "img")
     assert text == "TEIL 0\nTEIL 1\nTEIL 2"
     assert peak == 3  # wirklich gleichzeitig
+
+
+def _photo_like(seed=1):
+    """Bon auf dunklem Tisch, leicht gedreht, mit Rauschen und Krümeln – wie ein Handyfoto."""
+    rng = np.random.default_rng(seed)
+    rec = fake_receipt(height=2600, width=900)
+    bg = np.full((3200, 1800), 70, np.uint8)
+    bg[300:300 + rec.shape[0], 450:450 + rec.shape[1]] = rec
+    img = ocr.rotate(bg, 2.5)
+    noise = rng.normal(0, 12, img.shape)
+    img = np.clip(img.astype(np.float32) + noise, 0, 255).astype(np.uint8)
+    ys, xs = rng.integers(0, img.shape[0], 1500), rng.integers(0, img.shape[1], 1500)
+    img[ys, xs] = 0  # Krümel / Druckfehler
+    return img
+
+
+def test_noisy_photo_is_still_split_between_lines():
+    img = ocr.preprocess(_photo_like())
+    cuts = ocr.find_cut_rows(img, 3)
+    assert len(cuts) == 2, f"keine Schnitte gefunden (Höhe {img.shape[0]})"
+    # Schnitt darf keine Textzeile treffen: Zeilen drumherum haben (fast) keine Tinte
+    _, ink = cv2.threshold(img, 0, 1, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    ink = cv2.morphologyEx(ink, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    m = img.shape[1] // 20
+    for y in cuts:
+        assert ink[y - 2: y + 3, m:-m].sum() <= 5 * (img.shape[1] - 2 * m) // 100, y
