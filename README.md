@@ -86,10 +86,8 @@ tar czf ~/receipt-backup-$(date +%F).tar.gz data/backup.sqlite3 data/uploads .en
 | `APP_PORT` | `8095` | Port im Heimnetz |
 | `APP_USERNAME` / `APP_PASSWORD` | `admin` / – | Zugangsdaten (**Passwort muss gesetzt sein**) |
 | `SECRET_KEY` | leer | Leer = wird automatisch erzeugt |
-| `LLM_PROVIDER` | `ollama` | `ollama` oder `openai` (jede OpenAI-kompatible API) |
-| `LLM_BASE_URL` | `http://ollama:11434` | Adresse der KI. Für OpenAI z. B. `https://api.openai.com/v1` |
+| `LLM_BASE_URL` | `http://ollama:11434` | Adresse des lokalen Ollama |
 | `LLM_MODEL` | `qwen-bons` | Modellname |
-| `LLM_API_KEY` | leer | Nur für OpenAI-kompatible APIs |
 | `LLM_TIMEOUT` | `1200` | Maximale Wartezeit pro KI-Anfrage in Sekunden |
 | `LLM_NUM_CTX` | leer | Kontextlänge für Ollama. Leer = Wert aus dem Modelfile |
 | `LLM_NUM_THREAD` | leer | CPU-Threads für Ollama. Leer = Wert aus dem Modelfile |
@@ -145,7 +143,7 @@ app/
   ocr.py          pdftotext, Bildaufbereitung, Tesseract
   extraction.py   Prompt, Einlesen der KI-Antwort, Plausibilitätsprüfung
   lineparser.py   Positionen per Regel (ohne KI), Ladenname/Filiale/Zahlungsart
-  llm/            Austauschbare KI-Anbindung (Ollama, OpenAI-kompatibel)
+  llm/            Anbindung an das lokale Ollama (bewusst keine Cloud-KI)
   db.py           SQLite-Schema und Migrationen
 tests/            pytest, inkl. Beispiel-Bontexte von REWE und dm
 ```

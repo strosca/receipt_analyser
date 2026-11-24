@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
     app.state.worker = worker
     if app.state.start_worker:
         worker.start()
-    log.info("Receipt Analyser gestartet (KI: %s / %s)", settings.llm_provider, settings.llm_model)
+    log.info("Receipt Analyser gestartet (Ollama: %s / %s)", settings.llm_base_url, settings.llm_model)
     yield
     await worker.stop()
 

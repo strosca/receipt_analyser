@@ -15,10 +15,8 @@ class Settings(BaseSettings):
 
     data_dir: Path = Path("data")
 
-    llm_provider: str = "ollama"
     llm_base_url: str = "http://ollama:11434"
     llm_model: str = "qwen-bons"
-    llm_api_key: str | None = None
     llm_timeout: float = 1200
     llm_num_ctx: int | None = None
     llm_num_thread: int | None = None
