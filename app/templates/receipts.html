@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Bons{% endblock %}
+{% block content %}
+<h1>Bons</h1>
+
+<nav class="chips">
+  <a href="/bons" class="chip {% if not status %}active{% endif %}">Alle <span>{{ counts.values() | sum }}</span></a>
+  {% for key, label in labels.items() %}
+    {% if counts.get(key) %}
+    <a href="/bons?status={{ key }}" class="chip {% if status == key %}active{% endif %}">{{ label }} <span>{{ counts[key] }}</span></a>
+    {% endif %}
+  {% endfor %}
+</nav>
+
+<div hx-get="/partials/bons{% if status %}?status={{ status }}{% endif %}" hx-trigger="every 10s" hx-swap="innerHTML">
+  {% include "partials/receipt_rows.html" %}
+</div>
+{% endblock %}

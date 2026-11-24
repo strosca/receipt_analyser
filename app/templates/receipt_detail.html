@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}{{ r.merchant or ("Bon #" ~ r.id) }}{% endblock %}
+{% block head %}{% if busy %}<meta http-equiv="refresh" content="10">{% endif %}{% endblock %}
+{% block content %}
+<p class="small"><a href="/bons">← Alle Bons</a></p>
+
+<div class="detail-head">
+  <div>
+    <h1>{{ r.merchant or ("Bon #" ~ r.id) }}</h1>
+    <p class="muted small">
+      <span class="badge {{ r.status }}">{{ labels[r.status] }}</span>
+      {% if r.status_detail %} · {{ r.status_detail }}{% endif %}
+    </p>
+  </div>
+  <div class="actions">
+    {% if r.status != "verarbeitung" %}
+    <form method="post" action="/bons/{{ r.id }}/neu"><button type="submit">Neu verarbeiten</button></form>
+    <form method="post" action="/bons/{{ r.id }}/loeschen" onsubmit="return confirm('Bon wirklich löschen?')">
+      <button type="submit" class="danger">Löschen</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% if review_notes %}
+<div class="alert warn">
+  <strong>Bitte prüfen:</strong>
+  <ul>{% for n in review_notes %}<li>{{ n }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<div class="detail-grid">
+  <section class="card preview">
+    {% if r.mime_type == "application/pdf" %}
+      <iframe src="/bons/{{ r.id }}/datei" title="Bon als PDF"></iframe>
+    {% else %}
+      <img src="/bons/{{ r.id }}/datei" alt="Foto des Bons" loading="lazy">
+    {% endif %}
+    <p class="small"><a href="/bons/{{ r.id }}/datei" target="_blank" rel="noopener">Datei in voller Größe öffnen</a></p>
+  </section>
+
+  <section>
+    <div class="card">
+      <dl class="facts">
+        <dt>Händler</dt><dd>{{ r.merchant or "–" }}</dd>
+        <dt>Filiale</dt><dd>{{ r.branch or "–" }}</dd>
+        <dt>Datum</dt><dd>{{ r.purchase_date | datum }}</dd>
+        <dt>Gesamtsumme</dt><dd>{{ r.total | euro }}</dd>
+        <dt>Zahlungsart</dt><dd>{{ r.payment_method or "–" }}</dd>
+        <dt>Text aus</dt><dd>{{ {"pdf": "PDF-Textebene", "ocr": "Texterkennung (OCR)"}.get(r.text_source, "–") }}</dd>
+      </dl>
+    </div>
+
+    <div class="card">
+      <h2>Positionen ({{ items | length }})</h2>
+      {% if items %}
+      <table>
+        <thead><tr><th>Artikel</th><th class="num">Preis</th></tr></thead>
+        <tbody>
+          {% for i in items %}
+          <tr><td>{{ i.name }}</td><td class="num {% if i.price < 0 %}neg{% endif %}">{{ i.price | euro }}</td></tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr><th>Summe der Positionen</th><th class="num">{{ items_sum | euro }}</th></tr>
+          {% if r.total is not none and (items_sum - r.total) | abs > 0.005 %}
+          <tr><th>Abweichung zur Gesamtsumme</th><th class="num neg">{{ (items_sum - r.total) | euro }}</th></tr>
+          {% endif %}
+        </tfoot>
+      </table>
+      {% elif busy %}
+      <p class="muted">Wird noch verarbeitet … Die Seite aktualisiert sich automatisch.</p>
+      {% else %}
+      <p class="muted">Keine Positionen.</p>
+      {% endif %}
+    </div>
+
+    <details class="card">
+      <summary>Erkannter Rohtext</summary>
+      <pre class="rawtext">{{ r.raw_text or "(noch kein Text)" }}</pre>
+    </details>
+    <details class="card">
+      <summary>Antwort der KI</summary>
+      <pre class="rawtext">{{ r.llm_raw or "(noch keine Antwort)" }}</pre>
+    </details>
+    <p class="muted small">Hochgeladen {{ r.created_at }} UTC{% if r.original_name %} · {{ r.original_name }}{% endif %} · Versuche: {{ r.attempts }}</p>
+  </section>
+</div>
+{% endblock %}
