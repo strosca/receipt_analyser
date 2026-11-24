@@ -97,6 +97,7 @@ tar czf ~/receipt-backup-$(date +%F).tar.gz data/backup.sqlite3 data/uploads .en
 | `LLM_MAX_INPUT_CHARS` | `12000` | Längere Bontexte werden gekürzt (Bon wird dann „Prüfen“) |
 | `OWN_NAMES` | leer | Dein Name und deine Adresse(n), mit `;` getrennt. Werden nie als Händler übernommen. |
 | `OCR_LANG` | `deu+eng` | Sprachen für Tesseract |
+| `OCR_THREADS` | `3` | Kerne für die Texterkennung (Bon wird zwischen Textzeilen in Streifen geteilt) |
 | `RULE_PARSER` | `true` | Positionen zuerst per Regel lesen; `false` = immer die KI fragen |
 | `SUM_TOLERANCE` | `0.05` | Erlaubte Abweichung Positionen ↔ Summe in Euro |
 

@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     llm_max_input_chars: int = 12000
 
     ocr_lang: str = "deu+eng"
+    ocr_threads: int = 3  # parallele Tesseract-Prozesse (Bon wird in Streifen geteilt)
     rule_parser: bool = True  # Positionen erst per Regel versuchen, KI nur wenn die Summe nicht passt
     own_names: str = ""  # eigene Namen/Adressen, durch ";" getrennt – werden nie als Händler übernommen
     sum_tolerance: float = 0.05

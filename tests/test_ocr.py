@@ -48,3 +48,54 @@ def test_shadow_removal_evens_out_background():
 def test_pdf_text_threshold():
     assert ocr.has_usable_text("REWE Markt GmbH SUMME EUR 12,34 " * 3, 1)
     assert not ocr.has_usable_text("  \n \n ", 1)
+
+
+# ---------------------------------------------------------------- parallele Texterkennung
+
+def _ink_rows(img):
+    return (img < 128).sum(axis=1)
+
+
+@pytest.mark.parametrize("parts", [2, 3, 4])
+def test_cuts_only_between_text_lines(parts):
+    img = ocr.preprocess(fake_receipt(height=3000))
+    cuts = ocr.find_cut_rows(img, parts)
+    assert len(cuts) == parts - 1
+    ink = _ink_rows(img)
+    for y in cuts:
+        # Schnittzeile und ihre Nachbarn sind weiß -> keine Textzeile zerteilt
+        assert ink[y - 2: y + 3].sum() == 0, y
+
+
+def test_no_cut_without_gap():
+    # Komplett schwarz gestreiftes Bild ohne weiße Zeile -> nicht schneiden
+    img = np.full((3000, 800), 255, np.uint8)
+    img[::2, :] = 0
+    assert ocr.find_cut_rows(img, 3) == []
+
+
+def test_small_image_is_not_split():
+    assert ocr.find_cut_rows(fake_receipt(height=900), 3) == []
+
+
+def test_parallel_ocr_keeps_order(tmp_path, monkeypatch):
+    import threading
+    import time
+
+    active, peak = 0, 0
+    lock = threading.Lock()
+
+    def fake_tesseract(path):
+        nonlocal active, peak
+        with lock:
+            active += 1
+            peak = max(peak, active)
+        time.sleep(0.2)
+        with lock:
+            active -= 1
+        return f"TEIL {path.stem[-1]}\n"
+
+    monkeypatch.setattr(ocr, "tesseract", fake_tesseract)
+    text = ocr.tesseract_parallel(ocr.preprocess(fake_receipt(height=3000)), tmp_path, "img")
+    assert text == "TEIL 0\nTEIL 1\nTEIL 2"
+    assert peak == 3  # wirklich gleichzeitig

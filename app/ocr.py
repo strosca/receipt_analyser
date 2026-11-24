@@ -12,9 +12,11 @@ Ablauf für Fotos von (oft zerknitterten) Thermopapier-Bons:
 from __future__ import annotations
 
 import logging
+import os
 import re
 import subprocess
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -217,6 +219,11 @@ def _osd_rotation(image_path: Path) -> int:
     return 0
 
 
+# Jeder Tesseract-Prozess nur 1 Thread – wir starten stattdessen mehrere Prozesse parallel
+_TESS_ENV = {**os.environ, "OMP_THREAD_LIMIT": "1"}
+MIN_STRIP_HEIGHT = 600
+
+
 def tesseract(image_path: Path) -> str:
     lang = get_settings().ocr_lang
     cmd = [
@@ -224,7 +231,59 @@ def tesseract(image_path: Path) -> str:
         "-l", lang, "--oem", "1", "--psm", "4", "--dpi", "300",
         "-c", "preserve_interword_spaces=1",
     ]
-    return _run(cmd).stdout.decode("utf-8", errors="replace")
+    return _run(cmd, env=_TESS_ENV).stdout.decode("utf-8", errors="replace")
+
+
+def find_cut_rows(gray: np.ndarray, parts: int) -> list[int]:
+    """Zeilen (y), an denen das Bild in `parts` Streifen geschnitten werden kann, ohne Text zu zerteilen.
+
+    Gesucht wird jeweils nahe der idealen Schnittstelle eine komplett weiße Zeile, möglichst
+    mittig in einer Lücke zwischen zwei Textzeilen. Ohne Lücke wird dort nicht geschnitten.
+    """
+    h = gray.shape[0]
+    if parts <= 1 or h < 2 * MIN_STRIP_HEIGHT:
+        return []
+    parts = min(parts, h // MIN_STRIP_HEIGHT)
+    _, ink = cv2.threshold(gray, 0, 1, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    margin = gray.shape[1] // 50  # Ränder ignorieren (Schatten, Papierkante)
+    row_ink = ink[:, margin: gray.shape[1] - margin].sum(axis=1)
+    blank = row_ink <= max(2, gray.shape[1] // 500)
+    cuts = []
+    window = h // (parts * 4)
+    for k in range(1, parts):
+        target = k * h // parts
+        lo, hi = max(target - window, 1), min(target + window, h - 1)
+        best, best_len = None, 0
+        y = lo
+        while y < hi:  # längsten weißen Abschnitt im Fenster suchen
+            if blank[y]:
+                start = y
+                while y < hi and blank[y]:
+                    y += 1
+                if y - start > best_len:
+                    best, best_len = (start + y) // 2, y - start
+            y += 1
+        if best is not None and best_len >= 3 and (not cuts or best - cuts[-1] >= MIN_STRIP_HEIGHT // 2):
+            cuts.append(best)
+    return cuts
+
+
+def tesseract_parallel(gray: np.ndarray, workdir: Path, name: str) -> str:
+    """Bild in Streifen zwischen Textzeilen teilen und gleichzeitig erkennen lassen."""
+    threads = max(1, get_settings().ocr_threads)
+    cuts = find_cut_rows(gray, threads)
+    bounds = [0, *cuts, gray.shape[0]]
+    paths = []
+    for i, (a, b) in enumerate(zip(bounds, bounds[1:])):
+        path = workdir / f"{name}-part{i}.png"
+        cv2.imwrite(str(path), gray[a:b])
+        paths.append(path)
+    if len(paths) == 1:
+        return tesseract(paths[0])
+    with ThreadPoolExecutor(max_workers=len(paths)) as pool:
+        parts = list(pool.map(tesseract, paths))
+    log.info("OCR %s: %d Streifen parallel", name, len(paths))
+    return "\n".join(p.rstrip("\n") for p in parts)
 
 
 def ocr_image(gray: np.ndarray, workdir: Path, name: str) -> str:
@@ -237,9 +296,7 @@ def ocr_image(gray: np.ndarray, workdir: Path, name: str) -> str:
             codes = {90: cv2.ROTATE_90_CLOCKWISE, 180: cv2.ROTATE_180, 270: cv2.ROTATE_90_COUNTERCLOCKWISE}
             gray = cv2.rotate(gray, codes[rot])
     processed = preprocess(gray)
-    out = workdir / f"{name}-prep.png"
-    cv2.imwrite(str(out), processed)
-    return tesseract(out)
+    return tesseract_parallel(processed, workdir, name)
 
 
 # --------------------------------------------------------------------------- Einstieg
